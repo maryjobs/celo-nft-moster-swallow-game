@@ -51,16 +51,25 @@ contract MyNFT is ERC721, ERC721Enumerable, ERC721URIStorage, Ownable {
     }
 
     /// @dev modifier to check if caller is owner of the NFT
-    modifier isOwner(uint _index){
-        require(msg.sender == nfts[_index].owner, "You are not the NFT's owner");
+    modifier isOwner(uint256 _index) {
+        require(
+            msg.sender == nfts[_index].owner,
+            "You are not the NFT's owner"
+        );
+        _;
+    }
+
+    /// @dev modifier to check if NFT exists
+    modifier exist(uint256 _index) {
+        require(_exists(nfts[_index].tokenId), "Query of non existent NFT");
         _;
     }
 
     /// @dev for minting nfts
     function mint(string calldata uri) external payable {
         require(bytes(uri).length > 0, "Empty uri");
-        uint256 tokenId = _tokenIdCounter.current();
         _tokenIdCounter.increment();
+        uint256 tokenId = _tokenIdCounter.current();
         _safeMint(msg.sender, tokenId);
         _setTokenURI(tokenId, uri);
         addNFT(tokenId); // listing the nft
@@ -82,7 +91,8 @@ contract MyNFT is ERC721, ERC721Enumerable, ERC721URIStorage, Ownable {
     /// @dev swallowing an nft and transferring the nft from the owner to the attacker if the modifier is satisfied
     function swallowNFT(uint256 _index)
         external
-        hasMint()
+        exist(_index)
+        hasMint
         canSwallow(_index)
     {
         require(msg.sender != nfts[_index].owner, "can't swallow your own nft");
@@ -94,7 +104,12 @@ contract MyNFT is ERC721, ERC721Enumerable, ERC721URIStorage, Ownable {
     }
 
     /// @dev increasing the powervalue of an NFT by its owner and paying 0.5 celo for the transaction
-    function upgradeNFT(uint256 _index) external payable isOwner(_index) {
+    function upgradeNFT(uint256 _index)
+        external
+        payable
+        exist(_index)
+        isOwner(_index)
+    {
         require(msg.value == upgradeCost, "You need to pay to upgrade");
         nfts[_index].powerValue++;
         playerpowervalue[msg.sender]++;
@@ -106,6 +121,7 @@ contract MyNFT is ERC721, ERC721Enumerable, ERC721URIStorage, Ownable {
     function canSwallowNFT(address _address, uint256 _index)
         public
         view
+        exist(_index)
         checkAddress(_address)
         returns (bool)
     {
@@ -131,19 +147,31 @@ contract MyNFT is ERC721, ERC721Enumerable, ERC721URIStorage, Ownable {
     }
 
     /// @dev returning an nft
-    function getNft(uint256 _index) public view returns (NFT memory) {
+    function getNft(uint256 _index)
+        public
+        view
+        exist(_index)
+        returns (NFT memory)
+    {
         return nfts[_index];
     }
 
-
-    function addToWarRoom(uint _index) external isOwner(_index) {
+    function addToWarRoom(uint256 _index)
+        external
+        exist(_index)
+        isOwner(_index)
+    {
         require(!nfts[_index].canFight, "Already in war room");
         nfts[_index].canFight = true;
         _transfer(msg.sender, address(this), nfts[_index].tokenId);
     }
 
     /// @dev remove the nft from war room
-    function removeFromWarRoom(uint256 _index) external isOwner(_index) {
+    function removeFromWarRoom(uint256 _index)
+        external
+        exist(_index)
+        isOwner(_index)
+    {
         require(nfts[_index].canFight, "Not in war room");
         nfts[_index].canFight = false;
         _transfer(address(this), msg.sender, nfts[_index].tokenId);
@@ -155,7 +183,6 @@ contract MyNFT is ERC721, ERC721Enumerable, ERC721URIStorage, Ownable {
     }
 
     // The following functions are overrides required by Solidity.
-
 
     function _beforeTokenTransfer(
         address from,
