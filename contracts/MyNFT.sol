@@ -42,6 +42,11 @@ contract MyNFT is ERC721, ERC721Enumerable, ERC721URIStorage, Ownable {
         _;
     }
 
+// Modifier to check for owner 
+    modifier onlyOwner(uint _index){
+        require(msg.sender == nfts[_index].owner, "Only the owner can access this functionality");
+        _;
+    }
 
     
 
@@ -77,8 +82,7 @@ contract MyNFT is ERC721, ERC721Enumerable, ERC721URIStorage, Ownable {
 	 }
 
 // increasing the powervalue of an NFT by its owner and paying 0.5 celo for the transaction
-     function upgradeNFT(uint _index) external payable{
-        require(msg.sender == nfts[_index].owner, "you cant upgrade this nft");
+     function upgradeNFT(uint _index) external payable onlyOwner(_index){
          payable(owner()).transfer(msg.value);
          nfts[_index].powerValue++;
          playerpowervalue[msg.sender]++;    
@@ -111,8 +115,7 @@ contract MyNFT is ERC721, ERC721Enumerable, ERC721URIStorage, Ownable {
    
 
 // remove the nft from war room
-    function remove(uint _index) external {
-	        require(msg.sender == nfts[_index].owner, "can't remove this nft");         
+    function remove(uint _index) external onlyOwner(_index){      
             nfts[_index] = nfts[allNFTs - 1];
             delete nfts[allNFTs - 1];
             allNFTs--; 
