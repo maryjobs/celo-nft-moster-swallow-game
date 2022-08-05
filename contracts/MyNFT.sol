@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.2;
+pragma solidity ^0.8.4;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
@@ -7,141 +7,200 @@ import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 
-
 contract MyNFT is ERC721, ERC721Enumerable, ERC721URIStorage, Ownable {
     using Counters for Counters.Counter;
 
     Counters.Counter private _tokenIdCounter;
-    uint internal allNFTs = 0; 
+    Counters.Counter private allNfts;
+    uint256 upgradeCost = 0.5 ether;
 
     constructor() ERC721("GAMENFT", "GNFT") {}
 
-//  struct each nft
+    /// @dev struct each nft
     struct NFT {
-        uint tokenId;
+        uint256 tokenId;
         address payable owner;
-        uint powerValue; 
+        uint256 powerValue;
+        bool canFight;
     }
 
     mapping(address => bool) public minters;
-    mapping (uint => NFT) internal nfts;// mapping for nfts
-    mapping (address => uint) public playerpowervalue;// mapping for players
+    mapping(uint256 => NFT) private nfts; // mapping for nfts
+    mapping(address => uint256) public playerpowervalue; // mapping for players
 
-
-// modifier to check if an address has minted an nft
-     modifier hasmint(address _address) {
-        require(minters[_address], "Invalid address");
+    /// @dev modifier to check if caller has minted an nft
+    modifier hasMint() {
+        require(minters[msg.sender], "Invalid address");
         _;
     }
 
-
-// modifier to check if the power value of the attacker is greater than the power value of the owner
-     modifier canSwallow(address _address, uint _index) {
-       address ownerAddress = nfts[_index].owner;
-        require(playerpowervalue[_address] > playerpowervalue[ownerAddress], "You have less value point");
+    /// @dev modifier to check if the power value of the attacker is greater than the power value of the owner
+    modifier canSwallow(uint256 _index) {
+        require(nfts[_index].canFight, "NFT isn't in warzone");
+        require(
+            playerpowervalue[msg.sender] > playerpowervalue[nfts[_index].owner],
+            "You have less value point"
+        );
         _;
     }
 
+    /// @dev modifier to check if _address is valid
+    modifier checkAddress(address _address) {
+        require(_address != address(0), "Invalid address");
+        _;
+    }
 
-    
+    /// @dev modifier to check if caller is owner of the NFT
+    modifier isOwner(uint256 _index) {
+        require(
+            msg.sender == nfts[_index].owner,
+            "You are not the NFT's owner"
+        );
+        _;
+    }
 
+    /// @dev modifier to check if NFT exists
+    modifier exist(uint256 _index) {
+        require(_exists(nfts[_index].tokenId), "Query of non existent NFT");
+        _;
+    }
 
-
-     // for minting nfts
-    function mint(string memory uri) public payable {
-        uint256 tokenId = _tokenIdCounter.current();
+    /// @dev for minting nfts
+    function mint(string calldata uri) external payable {
+        require(bytes(uri).length > 0, "Empty uri");
         _tokenIdCounter.increment();
+        uint256 tokenId = _tokenIdCounter.current();
         _safeMint(msg.sender, tokenId);
         _setTokenURI(tokenId, uri);
-        addNFT(tokenId);// listing the nft 
+        addNFT(tokenId); // listing the nft
     }
 
-// adding the nft to the war room 
-    function addNFT(uint256 _tokenId ) private{
-        uint _powerValue = 0;
-        nfts[allNFTs] = NFT(
+    /// @dev adding the nft to the war room
+    function addNFT(uint256 _tokenId) private {
+        uint256 _powerValue = 0;
+        nfts[allNfts.current()] = NFT(
             _tokenId,
             payable(msg.sender),
-            _powerValue
+            _powerValue,
+            false //initialised bool canFight as false
         );
-        allNFTs++;
+        allNfts.increment();
         minters[msg.sender] = true;
-        
     }
 
-// swallowing an nft and tranfering the nft from the owner to the attacker if the modifier is satisfied
-     function swallowNFT(uint _index) external hasmint(msg.sender) canSwallow(msg.sender, _index){
-	        require(msg.sender != nfts[_index].owner, "can't swallow your own nft");         
-           _transfer(nfts[_index].owner, msg.sender, nfts[_index].tokenId);
-           nfts[_index].owner = payable(msg.sender);
-	 }
+    /// @dev swallowing an nft and transferring the nft from the owner to the attacker if the modifier is satisfied
+    function swallowNFT(uint256 _index)
+        external
+        exist(_index)
+        hasMint
+        canSwallow(_index)
+    {
+        require(msg.sender != nfts[_index].owner, "can't swallow your own nft");
+        require(nfts[_index].canFight, "Not in war room");
+        _transfer(address(this), msg.sender, nfts[_index].tokenId);
+        playerpowervalue[nfts[_index].owner] -= nfts[_index].powerValue;
+        playerpowervalue[msg.sender] += nfts[_index].powerValue;
+        nfts[_index].owner = payable(msg.sender);
+    }
 
-// increasing the powervalue of an NFT by its owner and paying 0.5 celo for the transaction
-     function upgradeNFT(uint _index) external payable{
-        require(msg.sender == nfts[_index].owner, "you cant upgrade this nft");
-         payable(owner()).transfer(msg.value);
-         nfts[_index].powerValue++;
-         playerpowervalue[msg.sender]++;    
-     }
+    /// @dev increasing the powervalue of an NFT by its owner and paying 0.5 celo for the transaction
+    function upgradeNFT(uint256 _index)
+        external
+        payable
+        exist(_index)
+        isOwner(_index)
+    {
+        require(msg.value == upgradeCost, "You need to pay to upgrade");
+        nfts[_index].powerValue++;
+        playerpowervalue[msg.sender]++;
+        (bool success, ) = payable(owner()).call{value: upgradeCost}("");
+        require(success, "Transfer failed");
+    }
 
-// returns true if the powervalue of the attacker is greater than the owner 
-      function canSwallowNFT(address _address, uint _index) public view returns(bool){
-        address ownerAddress = nfts[_index].owner;
-        if(playerpowervalue[_address] > playerpowervalue[ownerAddress]){
+    /// @dev returns true if the powervalue of the attacker is greater than the owner
+    function canSwallowNFT(address _address, uint256 _index)
+        public
+        view
+        exist(_index)
+        checkAddress(_address)
+        returns (bool)
+    {
+        if (playerpowervalue[_address] > playerpowervalue[nfts[_index].owner]) {
             return true;
-        }else{
+        } else {
             return false;
         }
     }
-// returns true if the address has minted an nft.
-     function hasMinted(address _address) public view returns(bool){
-        if(minters[_address] == true){
+
+    /// @dev returns true if the address has minted an nft.
+    function hasMinted(address _address)
+        public
+        view
+        checkAddress(_address)
+        returns (bool)
+    {
+        if (minters[_address] == true) {
             return true;
-        }else{
+        } else {
             return false;
         }
     }
 
-
-// returning all nfts
-    function getAllNFTS(uint _index) public view returns(NFT memory){
-        return nfts[_index]; 
+    /// @dev returning an nft
+    function getNft(uint256 _index)
+        public
+        view
+        exist(_index)
+        returns (NFT memory)
+    {
+        return nfts[_index];
     }
 
-   
-
-// remove the nft from war room
-    function remove(uint _index) external {
-	        require(msg.sender == nfts[_index].owner, "can't remove this nft");         
-            nfts[_index] = nfts[allNFTs - 1];
-            delete nfts[allNFTs - 1];
-            allNFTs--; 
-            _transfer(address(this), msg.sender, nfts[_index].tokenId);
-	 }
-// getting the length of save the planet nfts in the list
-     function getNFTlength() public view returns (uint256) {
-        return allNFTs;
+    function addToWarRoom(uint256 _index)
+        external
+        exist(_index)
+        isOwner(_index)
+    {
+        require(!nfts[_index].canFight, "Already in war room");
+        nfts[_index].canFight = true;
+        _transfer(msg.sender, address(this), nfts[_index].tokenId);
     }
 
+    /// @dev remove the nft from war room
+    function removeFromWarRoom(uint256 _index)
+        external
+        exist(_index)
+        isOwner(_index)
+    {
+        require(nfts[_index].canFight, "Not in war room");
+        nfts[_index].canFight = false;
+        _transfer(address(this), msg.sender, nfts[_index].tokenId);
+    }
 
-   
-
-
+    /// @dev getting the length of save the planet nfts in the list
+    function getNFTlength() public view returns (uint256) {
+        return allNfts.current();
+    }
 
     // The following functions are overrides required by Solidity.
-    function _beforeTokenTransfer(address from, address to, uint256 tokenId)
-        internal
-        override(ERC721, ERC721Enumerable)
-    {
+
+    function _beforeTokenTransfer(
+        address from,
+        address to,
+        uint256 tokenId
+    ) internal override(ERC721, ERC721Enumerable) {
         super._beforeTokenTransfer(from, to, tokenId);
     }
 
-    //    destroy an NFT
-    function _burn(uint256 tokenId) internal override(ERC721, ERC721URIStorage) {
+    /// @dev destroy an NFT
+    function _burn(uint256 tokenId)
+        internal
+        override(ERC721, ERC721URIStorage)
+    {
         super._burn(tokenId);
     }
 
-    //    return IPFS url of NFT metadata
+    /// @dev return IPFS url of NFT metadata
     function tokenURI(uint256 tokenId)
         public
         view

@@ -1,6 +1,6 @@
 import { create as ipfsHttpClient } from "ipfs-http-client";
 import axios from "axios";
-import { BigNumber, ethers } from "ethers";
+import { ethers } from "ethers";
 
 // initialize IPFS
 const client = ipfsHttpClient("https://ipfs.infura.io:5001/api/v0");
@@ -164,8 +164,6 @@ export const upgrade = async (
     await performActions(async (kit) => {
       try {
         const price = ethers.utils.parseUnits(String(0.5), "ether");
-        console.log(price);
-        console.log(minterContract, index);
         const { defaultAccount } = kit;
         await minterContract.methods.upgradeNFT(index).send({ from: defaultAccount, value: price});
       } catch (error) {

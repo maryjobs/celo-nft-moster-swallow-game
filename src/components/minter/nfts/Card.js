@@ -30,7 +30,7 @@ import { Button } from "react-bootstrap";
         </Card.Header>
 
         <div className=" ratio ratio-4x3">
-          <img src="https://techcrunch.com/wp-content/uploads/2019/09/monster-dot-com.jpg"  style={{ objectFit: "cover" }} />
+          <img src="https://techcrunch.com/wp-content/uploads/2019/09/monster-dot-com.jpg"  style={{ objectFit: "cover" }} alt={name} />
         </div>
 
         <Card.Body className="d-flex  flex-column text-center">
@@ -79,7 +79,6 @@ import { Button } from "react-bootstrap";
 NftCard.propTypes = {
   // props passed into this component
   nft: PropTypes.instanceOf(Object).isRequired,
-  modPrice: PropTypes.func.isRequired,
 
 };
 

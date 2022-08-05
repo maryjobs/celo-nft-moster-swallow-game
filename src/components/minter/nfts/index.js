@@ -6,10 +6,18 @@ import AddNfts from "./Add";
 import Nft from "./Card";
 import Loader from "../../ui/Loader";
 import { NotificationSuccess, NotificationError } from "../../ui/Notifications";
-import { getNfts, createNft, swallow, remove, upgrade, minted, checkPowervalue} from "../../../utils/minter";
+import {
+  getNfts,
+  createNft,
+  swallow,
+  remove,
+  upgrade,
+  minted,
+  checkPowervalue,
+} from "../../../utils/minter";
 import { Row } from "react-bootstrap";
 
-const NftList = ({ minterContract, marketplaceContract, name }) => {
+const NftList = ({ minterContract, name, updateBalance }) => {
   /* performActions : used to run smart contract interactions in order
    *  address : fetch the address of the connected wallet
    */
@@ -22,26 +30,23 @@ const NftList = ({ minterContract, marketplaceContract, name }) => {
       setLoading(true);
 
       // fetch all nfts from the smart contract
-      const allNfts = await getNfts(minterContract, marketplaceContract);
+      const allNfts = await getNfts(minterContract);
       if (!allNfts) return;
+      await updateBalance();
       setNfts(allNfts);
     } catch (error) {
       console.log({ error });
     } finally {
       setLoading(false);
     }
-  }, [marketplaceContract, minterContract]);
+  }, [minterContract, updateBalance]);
 
   const addNft = async (data) => {
     try {
       setLoading(true);
 
       // create an nft functionality
-      await createNft(
-        minterContract,
-        performActions,
-        data
-      );
+      await createNft(minterContract, performActions, data);
       toast(<NotificationSuccess text="Updating NFT list...." />);
       getAssets();
     } catch (error) {
@@ -54,40 +59,40 @@ const NftList = ({ minterContract, marketplaceContract, name }) => {
 
   const swallownft = async (index) => {
     const check = await minted(minterContract, address);
-    const checkPowerValue = await checkPowervalue(minterContract, address, index)
-    if(check===true && checkPowerValue === true){
-    try {
-      setLoading(true);
+    const checkPowerValue = await checkPowervalue(
+      minterContract,
+      address,
+      index
+    );
+    if (check === true && checkPowerValue === true) {
+      try {
+        setLoading(true);
 
-      await swallow(
-        minterContract,
-        performActions,
-        index
+        await swallow(minterContract, performActions, index);
+
+        toast(<NotificationSuccess text="Updating NFT list...." />);
+        getAssets();
+      } catch (error) {
+        console.log({ error });
+        toast(<NotificationError text="Failed to swallow NFT." />);
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      toast(
+        <NotificationError text="You can't swallow because you don't have a monster nft fighter" />
       );
-
-      toast(<NotificationSuccess text="Updating NFT list...." />);
-      getAssets();
-    } catch (error) {
-      console.log({ error });
-      toast(<NotificationError text="Failed to swallow NFT." />);
-    } finally {
-      setLoading(false);
+      toast(
+        <NotificationError text="You can't swallow because you power value is lesser" />
+      );
     }
-  }else{
-    toast(<NotificationError text="You can't swallow because you don't have a monster nft fighter" />);
-    toast(<NotificationError text="You can't swallow because you power value is lesser" />);
-  }
   };
 
   const upgradenft = async (index) => {
     try {
       setLoading(true);
 
-      await upgrade(
-        minterContract,
-        performActions,
-        index
-      );
+      await upgrade(minterContract, performActions, index);
 
       toast(<NotificationSuccess text="Updating NFT list...." />);
       getAssets();
@@ -103,11 +108,7 @@ const NftList = ({ minterContract, marketplaceContract, name }) => {
     try {
       setLoading(true);
 
-      await remove(
-        minterContract,
-        performActions,
-        index
-      );
+      await remove(minterContract, performActions, index);
 
       toast(<NotificationSuccess text="Updating NFT list...." />);
       getAssets();
@@ -118,8 +119,6 @@ const NftList = ({ minterContract, marketplaceContract, name }) => {
       setLoading(false);
     }
   };
-
-
 
   useEffect(() => {
     try {
@@ -148,12 +147,10 @@ const NftList = ({ minterContract, marketplaceContract, name }) => {
                   deleteNFT={() => deleteNFT(_nft.index)}
                   swallownft={() => swallownft(_nft.index)}
                   upgradenft={() => upgradenft(_nft.index)}
-               
                   nft={{
                     ..._nft,
                   }}
                   isOwner={_nft.owner === address}
-                  
                 />
               ))}
             </Row>
