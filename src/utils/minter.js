@@ -62,15 +62,15 @@ export const getNfts = async (minterContract) => {
     // contract starts minting from index 1
     for (let i = 0; i < Number(nftsLength); i++) {
       const nft = new Promise(async (resolve) => {
-        const _nft = await minterContract.methods.getAllNFTS(i).call();
+        const _nft = await minterContract.methods.getNft(i).call();
         const res = await minterContract.methods.tokenURI(_nft.tokenId).call();
         const meta = await fetchNftMeta(res);
-        const owner = await fetchNftOwner(minterContract, i); 
+        //const owner = await fetchNftOwner(minterContract, i); 
         resolve({
           index: i,
           powerValue: _nft.powerValue,
           name: meta.data.name,
-          owner: owner,
+          owner: meta.data.owner,
         });
       });
       nfts.push(nft);

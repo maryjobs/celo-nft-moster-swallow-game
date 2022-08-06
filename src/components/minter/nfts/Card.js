@@ -49,7 +49,7 @@ import { Button } from "react-bootstrap";
       {isOwner === true && (
             <>
               <Button variant="primary mt-2" onClick={() => upgradenft(index)}>
-               upgrade
+               Upgrade For 0.5 celo
               </Button>
             </>
           )}
