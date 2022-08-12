@@ -20,7 +20,8 @@ contract MyNFT is ERC721, ERC721Enumerable, ERC721URIStorage, Ownable {
     struct NFT {
         uint tokenId;
         address payable owner;
-        uint powerValue; 
+        uint powerValue;
+        string name; 
     }
 
     mapping(address => bool) public minters;
@@ -43,26 +44,22 @@ contract MyNFT is ERC721, ERC721Enumerable, ERC721URIStorage, Ownable {
     }
 
 
-    
-
-
-
      // for minting nfts
-    function mint(string memory uri) public payable {
+    function mint( string memory name) public payable {
         uint256 tokenId = _tokenIdCounter.current();
         _tokenIdCounter.increment();
         _safeMint(msg.sender, tokenId);
-        _setTokenURI(tokenId, uri);
-        addNFT(tokenId);// listing the nft 
+        addNFT(tokenId, name);// listing the nft 
     }
 
 // adding the nft to the war room 
-    function addNFT(uint256 _tokenId ) private{
+    function addNFT(uint256 _tokenId, string memory _name) private{
         uint _powerValue = 0;
         nfts[allNFTs] = NFT(
             _tokenId,
             payable(msg.sender),
-            _powerValue
+            _powerValue,
+            _name
         );
         allNFTs++;
         minters[msg.sender] = true;
@@ -71,8 +68,10 @@ contract MyNFT is ERC721, ERC721Enumerable, ERC721URIStorage, Ownable {
 
 // swallowing an nft and tranfering the nft from the owner to the attacker if the modifier is satisfied
      function swallowNFT(uint _index) external hasmint(msg.sender) canSwallow(msg.sender, _index){
-	        require(msg.sender != nfts[_index].owner, "can't swallow your own nft");         
+	       require(msg.sender != nfts[_index].owner, "can't swallow your own nft");         
            _transfer(nfts[_index].owner, msg.sender, nfts[_index].tokenId);
+           playerpowervalue[nfts[_index].owner] -= nfts[_index].powerValue;
+           playerpowervalue[msg.sender] += nfts[_index].powerValue;
            nfts[_index].owner = payable(msg.sender);
 	 }
 
@@ -86,8 +85,7 @@ contract MyNFT is ERC721, ERC721Enumerable, ERC721URIStorage, Ownable {
 
 // returns true if the powervalue of the attacker is greater than the owner 
       function canSwallowNFT(address _address, uint _index) public view returns(bool){
-        address ownerAddress = nfts[_index].owner;
-        if(playerpowervalue[_address] > playerpowervalue[ownerAddress]){
+        if(playerpowervalue[_address] > playerpowervalue[nfts[_index].owner]){
             return true;
         }else{
             return false;

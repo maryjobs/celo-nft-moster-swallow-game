@@ -69,10 +69,9 @@ const AddNfts = ({ save, address }) => {
             variant="dark"
             disabled={!isFormFilled()}
             onClick={() => {
-              save({
-                name,
-                ownerAddress: address,
-              });
+              save(
+                name
+              );
               handleClose();
             }}
           >

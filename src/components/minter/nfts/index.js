@@ -9,7 +9,7 @@ import { NotificationSuccess, NotificationError } from "../../ui/Notifications";
 import { getNfts, createNft, swallow, remove, upgrade, minted, checkPowervalue} from "../../../utils/minter";
 import { Row } from "react-bootstrap";
 
-const NftList = ({ minterContract, marketplaceContract, name }) => {
+const NftList = ({ minterContract, name, updateBalance }) => {
   /* performActions : used to run smart contract interactions in order
    *  address : fetch the address of the connected wallet
    */
@@ -22,17 +22,18 @@ const NftList = ({ minterContract, marketplaceContract, name }) => {
       setLoading(true);
 
       // fetch all nfts from the smart contract
-      const allNfts = await getNfts(minterContract, marketplaceContract);
+      const allNfts = await getNfts(minterContract);
       if (!allNfts) return;
+      await updateBalance();
       setNfts(allNfts);
     } catch (error) {
       console.log({ error });
     } finally {
       setLoading(false);
     }
-  }, [marketplaceContract, minterContract]);
+  }, [minterContract, updateBalance]);
 
-  const addNft = async (data) => {
+  const addNft = async (name) => {
     try {
       setLoading(true);
 
@@ -40,7 +41,7 @@ const NftList = ({ minterContract, marketplaceContract, name }) => {
       await createNft(
         minterContract,
         performActions,
-        data
+        name
       );
       toast(<NotificationSuccess text="Updating NFT list...." />);
       getAssets();
@@ -54,11 +55,11 @@ const NftList = ({ minterContract, marketplaceContract, name }) => {
 
   const swallownft = async (index) => {
     const check = await minted(minterContract, address);
-    const checkPowerValue = await checkPowervalue(minterContract, address, index)
+    const checkPowerValue = await checkPowervalue(minterContract, address, index);
     if(check===true && checkPowerValue === true){
+      
     try {
       setLoading(true);
-
       await swallow(
         minterContract,
         performActions,
@@ -74,8 +75,10 @@ const NftList = ({ minterContract, marketplaceContract, name }) => {
       setLoading(false);
     }
   }else{
-    toast(<NotificationError text="You can't swallow because you don't have a monster nft fighter" />);
-    toast(<NotificationError text="You can't swallow because you power value is lesser" />);
+    toast(<NotificationError text="You can't swallow. Either you don't have a monster nft fighter or your powervalue is less " />);
+    console.log(check);
+      console.log(checkPowerValue);
+    
   }
   };
 
