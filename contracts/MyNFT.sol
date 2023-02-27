@@ -59,37 +59,49 @@ contract MyNFT is ERC721, ERC721Enumerable, ERC721URIStorage, Ownable {
         _;
     }
 
+    /// @dev modifier to check if NFT exists
+    modifier exist(uint256 _index) {
+        require(_exists(nfts[_index].tokenId), "Query of non existent NFT");
+        _;
+    }
 
-    
-
-
-
-     // for minting nfts
-    function mint(string memory uri) public payable {
+    /// @dev for minting nfts
+    function mint(string calldata uri) external payable {
+        require(bytes(uri).length > 0, "Empty uri");
+        _tokenIdCounter.increment();
         uint256 tokenId = _tokenIdCounter.current();
         _safeMint(msg.sender, tokenId);
         _setTokenURI(tokenId, uri);
-        addNFT(tokenId);// listing the nft 
+        addNFT(tokenId); // listing the nft
     }
 
-// adding the nft to the war room 
-    function addNFT(uint256 _tokenId ) private{
-        uint _powerValue = 0;
-        nfts[allNFTs] = NFT(
+    /// @dev adding the nft to the war room
+    function addNFT(uint256 _tokenId) private {
+        uint256 _powerValue = 0;
+        nfts[allNfts.current()] = NFT(
             _tokenId,
             payable(msg.sender),
-            _powerValue
+            _powerValue,
+            false //initialised bool canFight as false
         );
         allNfts.increment();
         minters[msg.sender] = true;
     }
 
-// swallowing an nft and tranfering the nft from the owner to the attacker if the modifier is satisfied
-     function swallowNFT(uint _index) external hasmint(msg.sender) canSwallow(msg.sender, _index){
-	        require(msg.sender != nfts[_index].owner, "can't swallow your own nft");         
-           _transfer(nfts[_index].owner, msg.sender, nfts[_index].tokenId);
-           nfts[_index].owner = payable(msg.sender);
-	 }
+    /// @dev swallowing an nft and transferring the nft from the owner to the attacker if the modifier is satisfied
+    function swallowNFT(uint256 _index)
+        external
+        exist(_index)
+        hasMint
+        canSwallow(_index)
+    {
+        require(msg.sender != nfts[_index].owner, "can't swallow your own nft");
+        require(nfts[_index].canFight, "Not in war room");
+        _transfer(address(this), msg.sender, nfts[_index].tokenId);
+        playerpowervalue[nfts[_index].owner] -= nfts[_index].powerValue;
+        playerpowervalue[msg.sender] += nfts[_index].powerValue;
+        nfts[_index].owner = payable(msg.sender);
+    }
 
     /// @dev increasing the powervalue of an NFT by its owner and paying 0.5 celo for the transaction
     function upgradeNFT(uint256 _index)
@@ -105,10 +117,15 @@ contract MyNFT is ERC721, ERC721Enumerable, ERC721URIStorage, Ownable {
         require(success, "Transfer failed");
     }
 
-// returns true if the powervalue of the attacker is greater than the owner 
-      function canSwallowNFT(address _address, uint _index) public view returns(bool){
-        address ownerAddress = nfts[_index].owner;
-        if(playerpowervalue[_address] > playerpowervalue[ownerAddress]){
+    /// @dev returns true if the powervalue of the attacker is greater than the owner
+    function canSwallowNFT(address _address, uint256 _index)
+        public
+        view
+        exist(_index)
+        checkAddress(_address)
+        returns (bool)
+    {
+        if (playerpowervalue[_address] > playerpowervalue[nfts[_index].owner]) {
             return true;
         } else {
             return false;

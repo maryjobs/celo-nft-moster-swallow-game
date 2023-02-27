@@ -18,7 +18,6 @@ import {
 import { Row } from "react-bootstrap";
 
 const NftList = ({ minterContract, name, updateBalance }) => {
-const NftList = ({ minterContract, name, updateBalance }) => {
   /* performActions : used to run smart contract interactions in order
    *  address : fetch the address of the connected wallet
    */
@@ -42,16 +41,12 @@ const NftList = ({ minterContract, name, updateBalance }) => {
     }
   }, [minterContract, updateBalance]);
 
-  const addNft = async (name) => {
+  const addNft = async (data) => {
     try {
       setLoading(true);
 
       // create an nft functionality
-      await createNft(
-        minterContract,
-        performActions,
-        data
-      );
+      await createNft(minterContract, performActions, data);
       toast(<NotificationSuccess text="Updating NFT list...." />);
       getAssets();
     } catch (error) {
@@ -64,29 +59,33 @@ const NftList = ({ minterContract, name, updateBalance }) => {
 
   const swallownft = async (index) => {
     const check = await minted(minterContract, address);
-    const checkPowerValue = await checkPowervalue(minterContract, address, index)
-    if(check===true && checkPowerValue === true){
-    try {
-      setLoading(true);
+    const checkPowerValue = await checkPowervalue(
+      minterContract,
+      address,
+      index
+    );
+    if (check === true && checkPowerValue === true) {
+      try {
+        setLoading(true);
 
-      await swallow(
-        minterContract,
-        performActions,
-        index
+        await swallow(minterContract, performActions, index);
+
+        toast(<NotificationSuccess text="Updating NFT list...." />);
+        getAssets();
+      } catch (error) {
+        console.log({ error });
+        toast(<NotificationError text="Failed to swallow NFT." />);
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      toast(
+        <NotificationError text="You can't swallow because you don't have a monster nft fighter" />
       );
-
-      toast(<NotificationSuccess text="Updating NFT list...." />);
-      getAssets();
-    } catch (error) {
-      console.log({ error });
-      toast(<NotificationError text="Failed to swallow NFT." />);
-    } finally {
-      setLoading(false);
+      toast(
+        <NotificationError text="You can't swallow because you power value is lesser" />
+      );
     }
-  }else{
-    toast(<NotificationError text="You can't swallow because you don't have a monster nft fighter" />);
-    toast(<NotificationError text="You can't swallow because you power value is lesser" />);
-  }
   };
 
   const upgradenft = async (index) => {
