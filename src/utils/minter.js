@@ -1,36 +1,17 @@
 import { create as ipfsHttpClient } from "ipfs-http-client";
 import axios from "axios";
-import { ethers } from "ethers";
-
-// initialize IPFS
-const client = ipfsHttpClient("https://ipfs.infura.io:5001/api/v0");
+import { BigNumber, ethers } from "ethers";
 
 // mint an NFT
-export const createNft = async (
-  minterContract,
-  performActions,
-  { name }
-) => {
+export const createNft = async (minterContract, performActions, name) => {
   await performActions(async (kit) => {
     if (!name) return;
     const { defaultAccount } = kit;
 
-    // convert NFT metadata to JSON format
-    const data = JSON.stringify({
-      name,
-      owner: defaultAccount,
-    });
-
     try {
-      // save NFT metadata to IPFS
-      const added = await client.add(data);
-
-      // IPFS url for uploaded metadata
-      const url = `https://ipfs.infura.io/ipfs/${added.path}`;
-
       // mint the NFT and save the IPFS url to the blockchain
       let transaction = await minterContract.methods
-        .mint(url)
+        .mint(name)
         .send({ from: defaultAccount });
 
       return transaction;
@@ -38,20 +19,6 @@ export const createNft = async (
       console.log("Error uploading file: ", error);
     }
   });
-};
-
-// function to upload a file to IPFS
-export const uploadToIpfs = async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  try {
-    const added = await client.add(file, {
-      progress: (prog) => console.log(`received: ${prog}`),
-    });
-    return `https://ipfs.infura.io/ipfs/${added.path}`;
-  } catch (error) {
-    console.log("Error uploading file: ", error);
-  }
 };
 
 // fetch all NFTs on the smart contract
@@ -65,12 +32,12 @@ export const getNfts = async (minterContract) => {
         const _nft = await minterContract.methods.getNft(i).call();
         const res = await minterContract.methods.tokenURI(_nft.tokenId).call();
         const meta = await fetchNftMeta(res);
-        //const owner = await fetchNftOwner(minterContract, i); 
+        //const owner = await fetchNftOwner(minterContract, i);
         resolve({
           index: i,
           powerValue: _nft.powerValue,
-          name: meta.data.name,
-          owner: meta.data.owner,
+          name: _nft.name,
+          owner: owner,
         });
       });
       nfts.push(nft);
@@ -127,14 +94,7 @@ export const fetchNftContractOwner = async (minterContract) => {
   }
 };
 
-
-
-export const swallow = async (
-  minterContract,
-  performActions,
-  index,
-  
-) => {
+export const swallow = async (minterContract, performActions, index) => {
   try {
     await performActions(async (kit) => {
       try {
@@ -142,7 +102,7 @@ export const swallow = async (
         const { defaultAccount } = kit;
         await minterContract.methods
           .swallowNFT(index)
-          .send({ from: defaultAccount});
+          .send({ from: defaultAccount });
       } catch (error) {
         console.log({ error });
       }
@@ -152,20 +112,15 @@ export const swallow = async (
   }
 };
 
-
-
-export const upgrade = async (
-  minterContract,
-  performActions,
-  index,
-  
-) => {
+export const upgrade = async (minterContract, performActions, index) => {
   try {
     await performActions(async (kit) => {
       try {
         const price = ethers.utils.parseUnits(String(0.5), "ether");
         const { defaultAccount } = kit;
-        await minterContract.methods.upgradeNFT(index).send({ from: defaultAccount, value: price});
+        await minterContract.methods
+          .upgradeNFT(index)
+          .send({ from: defaultAccount, value: price });
       } catch (error) {
         console.log({ error });
       }
@@ -175,18 +130,14 @@ export const upgrade = async (
   }
 };
 
-
-export const remove = async (
-  minterContract,
-  performActions,
-  index,
-  
-) => {
+export const remove = async (minterContract, performActions, index) => {
   try {
     await performActions(async (kit) => {
       try {
         const { defaultAccount } = kit;
-        await minterContract.methods.remove(index).send({ from: defaultAccount });
+        await minterContract.methods
+          .remove(index)
+          .send({ from: defaultAccount });
       } catch (error) {
         console.log({ error });
       }
